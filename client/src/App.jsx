@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import AuthCard from './components/AuthCard';
 import LogReadingView from './components/views/LogReadingView';
 import LedgerView from './components/views/LedgerView';
+import ReportsView from './components/views/ReportsView';
 import AccountView from './components/views/AccountView';
 import SettingsView from './components/views/SettingsView';
 
@@ -82,17 +83,7 @@ export default function App() {
         )}
 
         {activeView === 'reports' && (
-          <div className="view-container">
-            <div className="section-meta">
-              <h1>Clinical Analytics & Reports</h1>
-              <p>Aggregated diagnostics: Highest, lowest, and average blood glucose calculations.</p>
-            </div>
-            <div className="surface-card">
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>
-                Reports dashboard views are ready to be integrated in Step 7.
-              </p>
-            </div>
-          </div>
+          <ReportsView />
         )}
 
         {activeView === 'account' && (
