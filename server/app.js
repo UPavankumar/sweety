@@ -4,6 +4,7 @@ const cors = require('cors');
 // Route modules
 const authRoutes = require('./routes/auth');
 const readingsRoutes = require('./routes/readings');
+const reportsRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get('/health', (req, res) => {
 // Mount Routes
 app.use('/auth', authRoutes);
 app.use('/readings', readingsRoutes);
+app.use('/reports', reportsRoutes);
 
 // 404 Handler for undefined routes
 app.use((req, res, next) => {
