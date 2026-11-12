@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "db:migrate": "node migrate.js",
+    "db:seed": "node seed.js",
     "test": "jest --runInBand --detectOpenHandles"
   },
   "keywords": [],
