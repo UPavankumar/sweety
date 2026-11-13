@@ -71,6 +71,8 @@ The server reads `server/.env`. Copy `server/.env.example` and fill in:
 | `DATABASE_URL` | PostgreSQL connection string               | `postgresql://user:password@host:5432/sweety` (local) or the Neon URL from `.env.example` |
 | `JWT_SECRET`   | Any long random string used to sign tokens | pick your own                                                  |
 
+`.env.example` also documents optional settings (CORS origins, reverse-proxy trust, login/register rate limits) that have sensible local defaults.
+
 The frontend needs **no environment variables** - in development, the Vite dev server proxies `/auth`, `/readings`, `/reports` and `/health` to `http://localhost:5000` automatically (see `client/vite.config.js`).
 
 ## Database setup
@@ -85,7 +87,7 @@ npm run db:seed      # creates the demo account + 16 sample readings (seed.js)
 What the seed creates:
 
 - Demo user `demo@sweety.com` / `Password123!` (bcrypt-hashed, 10 rounds)
-- 16 readings spread across November 2026 and October 2026, so daily, month-to-date and previous-month reports all have data
+- Up to 16 readings on dates relative to when you seed: all 4 slots for today, readings from earlier this month (days 1, 5 and 10, only when they are before today), and 6 readings from the previous month - so daily, month-to-date and previous-month reports all have data whenever you seed
 
 The seed is repeatable: it deletes any existing `demo@sweety.com` user first, so you can run it again any time to reset the demo.
 
@@ -106,7 +108,7 @@ After signing in, the sidebar has five sections:
 
 ### Validation rules
 
-All rules below are enforced by the API (`server/middleware/validateReading.js`). In addition, the one-reading-per-slot-per-day rule is enforced at the database level by the UNIQUE(user_id, date, slot) constraint.
+All rules below are enforced by the API (`server/middleware/validateReading.js`). Three of them are also enforced at the database level: the one-reading-per-slot-per-day rule by a UNIQUE(user_id, date, slot) constraint, and the value range (40-600) and allowed slots by CHECK constraints (see `server/schema.sql` and `server/constraints.sql`).
 
 - Date must be in `YYYY-MM-DD` format and cannot be in the future
 - Slot must be one of: `Morning (fasting)`, `After breakfast`, `After lunch`, `After dinner`
@@ -151,20 +153,28 @@ sweety/
 
 ## Tests
 
-The server has a test script wired up (Jest + Supertest):
+The server has an automated API test suite (Jest + Supertest) covering authentication, reading validation (all five intake rules), reading CRUD, reports, and security hardening.
+
+The suite runs against a **separate test database** - it drops and recreates tables, so it never touches your dev data. It refuses to start unless the database name contains "test".
 
 ```bash
 cd server
+
+# point the suite at a dedicated test database, either:
+export TEST_DATABASE_URL=postgresql://user:password@localhost:5432/sweety_test
+# or create server/.env.test.local with that line (git-ignored)
+
 npm test
 ```
 
-**Note:** no automated test files ship with this submission - the script is in place, but the suite itself is not included. Instead, the app was verified manually by running it against a live PostgreSQL database with the seeded demo account. The flows exercised that way: sign-in, the Log Reading intake screen, the Glucose Ledger with the seeded readings, and the Daily and Month-to-Date reports. Adding, editing and deleting readings and the Monthly (previous month) report were not part of that manual pass, and input validation rules were not exercised by automated CRUD tests.
+`npm test` runs Jest with `--runInBand --detectOpenHandles` (see `server/tests/` for the suites and helpers).
+
 
 ## Notes
 
 - **Demo credentials are intentional.** `demo@sweety.com` / `Password123!` is seeded sample data so reviewers can sign in instantly; it is not a real user. The sign-in page shows a "Fill Demo Credentials" button for convenience.
 - **Status labels are demo logic, not medical guidance.** The Normal / Elevated / High Risk / Hypoglycemia labels in the ledger and the target ranges on the intake screen are simple threshold classifications built for this demo. They are not medical advice.
-- **Dates in the seed data** (November/October 2026) are fixed so all three report types have data. To see the Daily report with data, set the reference date to `2026-11-12`.
+- **Seed dates are relative to when you run the seed**, so all three report types have data immediately: the Daily report for today and the Month-to-Date report work out of the box.
 - **"Monthly" report** always covers the calendar month before the reference date's month.
 - **Production deployment is out of scope** for this take-home - the app runs locally in development mode. The Neon `DATABASE_URL` format is supported so the same code works against a hosted database.
 - `neon.ts` at the repo root is optional configuration for the Neon CLI's branch management. The app does not read it at runtime; it is safe to ignore for local setup.
