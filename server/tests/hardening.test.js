@@ -1,13 +1,13 @@
 /**
- * End-to-end API tests (jest + supertest) against the real database in
- * server/.env. Every account created here uses an e2e-jest-*@sweety.test
- * email and is deleted afterwards (readings cascade).
+ * Security and robustness checks (rate limits, CORS, headers, token edge
+ * cases, input hardening, DB constraints). Runs against the TEST database
+ * configured in tests/helpers/testEnv.js. Unlike the per-resource suites,
+ * the tests in this file build on each other in order.
  *
  *   cd server && npm test
  */
+const { app, db, applySchema } = require('./helpers/testDb');
 const request = require('supertest');
-const app = require('../app');
-const db = require('../db');
 
 jest.setTimeout(60000);
 
@@ -27,6 +27,8 @@ async function register(tag, extra = {}) {
   return res;
 }
 const post = (token, body) => api().post('/readings').set(auth(token)).send(body);
+
+beforeAll(applySchema);
 
 afterAll(async () => {
   await db.query("DELETE FROM users WHERE email LIKE 'e2e-jest-%@sweety.test'");
