@@ -26,12 +26,23 @@ async function request(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error('Cannot reach the Sweety server. Check your connection and try again.');
+  }
 
   const data = await response.json().catch(() => ({}));
+
+  // A rejected token on an authenticated request means the session is over
+  // (expired, tampered, or the account was removed) -> let the app sign out.
+  if (response.status === 401 && token && !endpoint.startsWith('/auth/')) {
+    window.dispatchEvent(new CustomEvent('sweety:unauthorized', { detail: data.error }));
+  }
 
   if (!response.ok) {
     const errorMessage = data.error || data.message || `Request failed with status ${response.status}`;

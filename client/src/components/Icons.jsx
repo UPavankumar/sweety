@@ -135,6 +135,42 @@ export function SettingsIcon({ className = '', size = 18 }) {
   );
 }
 
+function Svg({ size, className, children, sw = 1.75 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+export const CheckIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className} sw={2.25}><polyline points="20 6 9 17 4 12" /></Svg>
+);
+export const ArrowUpIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className} sw={2}><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></Svg>
+);
+export const ArrowDownIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className} sw={2}><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></Svg>
+);
+export const HashIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /><line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" /></Svg>
+);
+export const TargetIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Svg>
+);
+export const SunriseIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><path d="M17 18a5 5 0 0 0-10 0" /><line x1="12" y1="2" x2="12" y2="9" /><line x1="4.22" y1="10.22" x2="5.64" y2="11.64" /><line x1="1" y1="18" x2="3" y2="18" /><line x1="21" y1="18" x2="23" y2="18" /><line x1="18.36" y1="11.64" x2="19.78" y2="10.22" /><line x1="23" y1="22" x2="1" y2="22" /><polyline points="8 6 12 2 16 6" /></Svg>
+);
+export const CoffeeIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></Svg>
+);
+export const SunIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></Svg>
+);
+export const MoonIcon = ({ className = '', size = 16 }) => (
+  <Svg size={size} className={className}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></Svg>
+);
+
 export function ShieldCheckIcon({ className = '', size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>

@@ -8,12 +8,46 @@ const ALLOWED_SLOTS = [
 ];
 
 /**
+ * True when `str` is a real calendar date in strict YYYY-MM-DD form
+ * (rejects things like 2026-02-30 or 2026-13-01 that would crash Postgres).
+ */
+function isValidDateString(str) {
+  if (typeof str !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  const [y, m, d] = str.split('-').map(Number);
+  if (y < 1900) return false; // also sidesteps Date.UTC mapping years 0-99 to 1900-1999
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+const MAX_PG_INT = 2147483647;
+
+/**
+ * Parse a :id route param. Non-numeric -> 400; numeric but beyond the
+ * Postgres INTEGER range can't exist -> 404 (instead of a DB overflow 500).
+ */
+function parseReadingId(raw) {
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) {
+    return { status: 400, error: 'Invalid reading ID.' };
+  }
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id < 1 || id > MAX_PG_INT) {
+    return { status: 404, error: 'Reading not found.' };
+  }
+  return { id };
+}
+
+/**
  * Returns today's date formatted as 'YYYY-MM-DD' in local time (or client header if provided).
  * Prevents UTC false-rejection bugs for timezones ahead of UTC.
  */
 function getTodayDateString(req) {
-  if (req && req.headers['x-client-date'] && /^\d{4}-\d{2}-\d{2}$/.test(req.headers['x-client-date'])) {
-    return req.headers['x-client-date'];
+  const clientDate = req && req.headers['x-client-date'];
+  if (isValidDateString(clientDate)) {
+    // The header is client-controlled: never let it claim a date later than
+    // the latest calendar date currently in effect anywhere on Earth (UTC+14),
+    // otherwise a spoofed header bypasses the "no future dates" rule.
+    const latestOnEarth = new Date(Date.now() + 14 * 3600 * 1000).toISOString().slice(0, 10);
+    return clientDate > latestOnEarth ? latestOnEarth : clientDate;
   }
   // 'en-CA' outputs ISO formatted YYYY-MM-DD using local server timezone
   return new Date().toLocaleDateString('en-CA');
@@ -25,12 +59,17 @@ function getTodayDateString(req) {
  */
 async function validateReading(req, res, next) {
   try {
-    const { date, slot, value } = req.body;
-    const readingId = req.params.id ? parseInt(req.params.id, 10) : null;
+    const { date, slot, value } = req.body || {};
+    let readingId = null;
+    if (req.params.id !== undefined) {
+      const parsed = parseReadingId(req.params.id);
+      if (parsed.error) return res.status(parsed.status).json({ error: parsed.error });
+      readingId = parsed.id;
+    }
     const userId = req.user.id;
 
     // 1. Date presence & format check
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!isValidDateString(date)) {
       return res.status(400).json({ error: 'Please provide a valid date in YYYY-MM-DD format.' });
     }
 
@@ -52,8 +91,11 @@ async function validateReading(req, res, next) {
       return res.status(400).json({ error: 'Please enter a glucose value.' });
     }
 
-    // Rule 2: Whole number between 40 and 600
-    const numValue = Number(value);
+    // Rule 2: Whole number between 40 and 600. Strings must be plain digits
+    // (Number() would otherwise accept "1e2" or "0x64" as 100).
+    let numValue = NaN;
+    if (typeof value === 'number') numValue = value;
+    else if (typeof value === 'string' && /^\s*\d+\s*$/.test(value)) numValue = Number(value);
     if (!Number.isInteger(numValue) || numValue < 40 || numValue > 600) {
       return res.status(400).json({ error: 'Value must be between 40 and 600 mg/dl.' });
     }
@@ -111,4 +153,6 @@ module.exports = {
   validateReading,
   ALLOWED_SLOTS,
   getTodayDateString,
+  isValidDateString,
+  parseReadingId,
 };
