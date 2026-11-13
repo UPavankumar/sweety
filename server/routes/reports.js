@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const authenticateToken = require('../middleware/auth');
-const { getTodayDateString } = require('../middleware/validateReading');
+const { getTodayDateString, isValidDateString } = require('../middleware/validateReading');
 
 // All report endpoints require authentication
 router.use(authenticateToken);
@@ -27,7 +27,7 @@ router.get('/', async (req, res, next) => {
     if (!type) {
       type = 'daily';
     } else {
-      type = type.toLowerCase().trim();
+      type = String(type).toLowerCase().trim();
       if (!VALID_TYPES.includes(type)) {
         return res.status(400).json({
           error: `Invalid report type. Allowed types: ${VALID_TYPES.join(', ')}`,
@@ -37,7 +37,7 @@ router.get('/', async (req, res, next) => {
 
     if (!date) {
       date = getTodayDateString(req);
-    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    } else if (!isValidDateString(date)) {
       return res.status(400).json({
         error: 'Please provide a valid date in YYYY-MM-DD format.',
       });

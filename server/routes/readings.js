@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const authenticateToken = require('../middleware/auth');
-const { validateReading } = require('../middleware/validateReading');
+const { validateReading, isValidDateString, parseReadingId } = require('../middleware/validateReading');
+
+// Postgres FK violation: the token's user no longer exists
+function isMissingUser(error) {
+  return error.code === '23503';
+}
 
 // All readings routes require an authenticated user
 router.use(authenticateToken);
@@ -26,6 +31,9 @@ router.get('/', async (req, res, next) => {
     const queryParams = [userId];
 
     if (date) {
+      if (!isValidDateString(date)) {
+        return res.status(400).json({ error: 'Please provide a valid date in YYYY-MM-DD format.' });
+      }
       queryText += ' AND date = $2';
       queryParams.push(date);
     }
@@ -67,6 +75,9 @@ router.post('/', validateReading, async (req, res, next) => {
       return res.status(400).json({
         error: `You already have a ${req.body.slot} reading for this date.`,
       });
+    }
+    if (isMissingUser(error)) {
+      return res.status(401).json({ error: 'Account not found. Please log in again.' });
     }
     next(error);
   }
@@ -116,12 +127,10 @@ router.put('/:id', validateReading, async (req, res, next) => {
  */
 router.delete('/:id', async (req, res, next) => {
   try {
-    const readingId = parseInt(req.params.id, 10);
+    const parsed = parseReadingId(req.params.id);
+    if (parsed.error) return res.status(parsed.status).json({ error: parsed.error });
+    const readingId = parsed.id;
     const userId = req.user.id;
-
-    if (isNaN(readingId)) {
-      return res.status(400).json({ error: 'Invalid reading ID.' });
-    }
 
     const result = await db.query(
       'DELETE FROM readings WHERE id = $1 AND user_id = $2 RETURNING id',

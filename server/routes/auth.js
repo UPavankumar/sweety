@@ -3,25 +3,43 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { loginLimiter, registerLimiter } = require('../middleware/security');
 
 const SALT_ROUNDS = 10;
 const TOKEN_EXPIRY = '24h'; // Decision 1A: 24 hours validity
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * POST /auth/register
  * Register a new user with name, email, and password.
  */
-router.post('/register', async (req, res, next) => {
+router.post('/register', registerLimiter, async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
 
     // 1. Validate required fields
-    if (!name || !email || !password) {
+    if (
+      typeof name !== 'string' || !name.trim() ||
+      typeof email !== 'string' || !email.trim() ||
+      typeof password !== 'string' || !password
+    ) {
       return res.status(400).json({ error: 'Please provide name, email, and password.' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = name.trim();
+
+    if (!EMAIL_RE.test(trimmedEmail) || trimmedEmail.length > 254) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
+
+    if (trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Name must be 100 characters or fewer.' });
+    }
+
+    if (password.length > 128) {
+      return res.status(400).json({ error: 'Password must be 128 characters or fewer.' });
+    }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
@@ -50,7 +68,7 @@ router.post('/register', async (req, res, next) => {
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
+      { expiresIn: TOKEN_EXPIRY, algorithm: 'HS256' }
     );
 
     return res.status(201).json({
@@ -63,6 +81,10 @@ router.post('/register', async (req, res, next) => {
       },
     });
   } catch (error) {
+    // Two simultaneous sign-ups with the same email: the UNIQUE constraint wins
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email is already registered.' });
+    }
     next(error);
   }
 });
@@ -71,12 +93,12 @@ router.post('/register', async (req, res, next) => {
  * POST /auth/login
  * Authenticate existing user and return JWT token.
  */
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     // 1. Validate presence of credentials
-    if (!email || !password) {
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
       return res.status(400).json({ error: 'Please enter both email and password.' });
     }
 
@@ -108,7 +130,7 @@ router.post('/login', async (req, res, next) => {
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
+      { expiresIn: TOKEN_EXPIRY, algorithm: 'HS256' }
     );
 
     return res.status(200).json({

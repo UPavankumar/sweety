@@ -1,6 +1,37 @@
 const bcrypt = require('bcrypt');
 const { pool } = require('./db');
 
+const iso = (y, m, d) => new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10);
+
+/**
+ * Demo readings for: today (all 4 slots), earlier this month (only days
+ * before today), and the previous month (days that exist in every month).
+ */
+function buildSampleReadings(now) {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const today = now.getDate();
+  const rows = [
+    { date: iso(y, m, today), slot: 'Morning (fasting)', value: 92 },
+    { date: iso(y, m, today), slot: 'After breakfast', value: 138 },
+    { date: iso(y, m, today), slot: 'After lunch', value: 124 },
+    { date: iso(y, m, today), slot: 'After dinner', value: 142 },
+  ];
+  const earlier = [
+    [1, 'Morning (fasting)', 91], [1, 'After breakfast', 130],
+    [5, 'Morning (fasting)', 95], [5, 'After dinner', 145],
+    [10, 'Morning (fasting)', 89], [10, 'After lunch', 118],
+  ];
+  earlier.filter(([d]) => d < today).forEach(([d, slot, value]) => rows.push({ date: iso(y, m, d), slot, value }));
+  const prev = [
+    [2, 'Morning (fasting)', 90], [2, 'After dinner', 150],
+    [15, 'Morning (fasting)', 94], [15, 'After breakfast', 134],
+    [28, 'Morning (fasting)', 88], [28, 'After lunch', 115],
+  ];
+  prev.forEach(([d, slot, value]) => rows.push({ date: iso(y, m - 1, d), slot, value }));
+  return rows;
+}
+
 async function seed() {
   try {
     console.log('Seeding demo data into Sweety database...');
@@ -24,34 +55,9 @@ async function seed() {
     const demoUserId = userRes.rows[0].id;
     console.log(`✓ Demo user created: ${userRes.rows[0].email} (ID: ${demoUserId})`);
 
-    // 4. Sample readings data
-    // Includes readings for:
-    // - Today: 2026-11-12
-    // - Month-to-date (earlier in Nov 2026): 2026-11-01 to 2026-11-10
-    // - Previous month (Oct 2026): for monthly report
-    const sampleReadings = [
-      // Today (2026-11-12)
-      { date: '2026-11-12', slot: 'Morning (fasting)', value: 92 },
-      { date: '2026-11-12', slot: 'After breakfast', value: 138 },
-      { date: '2026-11-12', slot: 'After lunch', value: 124 },
-      { date: '2026-11-12', slot: 'After dinner', value: 142 },
-
-      // Earlier this month (Month-to-date)
-      { date: '2026-11-10', slot: 'Morning (fasting)', value: 89 },
-      { date: '2026-11-10', slot: 'After lunch', value: 118 },
-      { date: '2026-11-05', slot: 'Morning (fasting)', value: 95 },
-      { date: '2026-11-05', slot: 'After dinner', value: 145 },
-      { date: '2026-11-01', slot: 'Morning (fasting)', value: 91 },
-      { date: '2026-11-01', slot: 'After breakfast', value: 130 },
-
-      // Previous month (October 2026)
-      { date: '2026-10-28', slot: 'Morning (fasting)', value: 88 },
-      { date: '2026-10-28', slot: 'After lunch', value: 115 },
-      { date: '2026-10-15', slot: 'Morning (fasting)', value: 94 },
-      { date: '2026-10-15', slot: 'After breakfast', value: 134 },
-      { date: '2026-10-02', slot: 'Morning (fasting)', value: 90 },
-      { date: '2026-10-02', slot: 'After dinner', value: 150 },
-    ];
+    // 4. Sample readings, dated relative to the day the seed runs so the
+    //    daily, month-to-date and monthly reports always have data.
+    const sampleReadings = buildSampleReadings(new Date());
 
     for (const r of sampleReadings) {
       await pool.query(
@@ -75,4 +81,8 @@ async function seed() {
   }
 }
 
-seed();
+if (require.main === module) {
+  seed();
+}
+
+module.exports = { buildSampleReadings };

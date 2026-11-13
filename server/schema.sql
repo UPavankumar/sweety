@@ -8,7 +8,9 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT users_email_lowercase CHECK (email = lower(email)),
+    CONSTRAINT users_name_not_blank CHECK (length(btrim(name)) > 0)
 );
 
 -- 2. Readings table: stores blood glucose measurements
@@ -19,7 +21,9 @@ CREATE TABLE readings (
     slot VARCHAR(50) NOT NULL,
     value INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_user_date_slot UNIQUE (user_id, date, slot)
+    CONSTRAINT unique_user_date_slot UNIQUE (user_id, date, slot),
+    CONSTRAINT readings_value_range CHECK (value BETWEEN 40 AND 600),
+    CONSTRAINT readings_slot_allowed CHECK (slot IN ('Morning (fasting)', 'After breakfast', 'After lunch', 'After dinner'))
 );
 
 -- 3. Composite Index: optimizes filtering by user and date queries
